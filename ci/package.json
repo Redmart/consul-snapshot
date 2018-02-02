@@ -1,0 +1,31 @@
+{
+  "name": "consul-snapshot",
+  "description": "consul-snapshot",
+"version": "1.0.0-0",
+  "author": {
+    "name": "RedMart Pte. Ltd."
+  },
+  "dependencies": {
+    "grunt": "0.4.x",
+    "ssh2": "~0.2.x",
+    "chef-api": "~0.4.x",
+    "grunt-s3": "0.2.x",
+    "grunt-contrib-clean": "0.5.x",
+    "grunt-contrib-compress": "0.8.x",
+    "grunt-release": "^0.13.0",
+    "semvar-ghflow-grunt-redmart-builder": "git+https://github.com/redmart/semvar-ghflow-grunt-redmart-builder.git"
+  },
+  "engines": {
+    "node": "0.10.x",
+    "npm": "1.3.x",
+    "grunt": "0.4.x"
+  },
+  "scripts": {
+    "prestart": "npm install",
+    "start": "grunt default"
+  },
+  "devDependencies": {
+    "grunt": "^0.4.5",
+    "grunt-release": "^0.13.0"
+  }
+}

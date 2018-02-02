@@ -10,13 +10,14 @@ import (
 // Consul struct is used for consul client such as the client
 // and the actual key data.
 type Consul struct {
-	Client     consulapi.Client
-	KeyData    consulapi.KVPairs
-	KeyDataLen int
-	PQData     []*consulapi.PreparedQueryDefinition
-	PQDataLen  int
-	ACLData    []*consulapi.ACLEntry
-	ACLDataLen int
+	Client       consulapi.Client
+	KeyData      consulapi.KVPairs
+	KeyDataLen   int
+	PQData       []*consulapi.PreparedQueryDefinition
+	PQDataLen    int
+	ACLData      []*consulapi.ACLEntry
+	ACLDataLen   int
+	ServicesData map[string][]*consulapi.CatalogService
 }
 
 // Client creates a consul client from the consul api
@@ -78,5 +79,36 @@ func (c *Consul) ListACLs() {
 		c.ACLData = acls
 		c.ACLDataLen = len(acls)
 	}
+}
 
+// ListServices lists all the catalog services from consul
+func (c *Consul) ListServices() map[string][]string {
+	listOpt := &consulapi.QueryOptions{
+		AllowStale:        false,
+		RequireConsistent: true,
+	}
+
+	services, _, err := c.Client.Catalog().Services(listOpt)
+	if err != nil {
+		log.Fatalf("[ERR] Unable to list keys: %v", err)
+	}
+	return services
+}
+
+// GetServicesData lists all the catalog services information from consul
+func (c *Consul) GetServicesData() {
+	listOpt := &consulapi.QueryOptions{
+		AllowStale:        false,
+		RequireConsistent: true,
+	}
+	c.ServicesData = make(map[string][]*consulapi.CatalogService)
+	services := c.ListServices()
+
+	for servicename := range services {
+		servicedata, _, err := c.Client.Catalog().Service(servicename, "", listOpt)
+		if err != nil {
+			log.Fatalf("[ERR] Unable to list Service data: %v", err)
+		}
+		c.ServicesData[servicename] = servicedata
+	}
 }

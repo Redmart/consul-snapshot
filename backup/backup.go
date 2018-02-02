@@ -6,13 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"cloud.google.com/go/storage"
 	"github.com/aws/aws-sdk-go/aws"
@@ -28,21 +29,23 @@ import (
 
 // Backup is the backup itself including configuration and data
 type Backup struct {
-	ACLFileChecksum  string
-	ACLJSONData      []byte
-	Client           *consul.Consul
-	Config           *config.Config
-	FullFilename     string
-	KVFileChecksum   string
-	KVJSONData       []byte
-	LocalACLFileName string
-	LocalFilePath    string
-	LocalKVFileName  string
-	LocalPQFileName  string
-	PQFileChecksum   string
-	PQJSONData       []byte
-	RemoteFilePath   string
-	StartTime        int64
+	ACLFileChecksum       string
+	ACLJSONData           []byte
+	Client                *consul.Consul
+	Config                *config.Config
+	FullFilename          string
+	KVFileChecksum        string
+	KVJSONData            []byte
+	LocalACLFileName      string
+	LocalFilePath         string
+	LocalKVFileName       string
+	LocalPQFileName       string
+	PQFileChecksum        string
+	PQJSONData            []byte
+	RemoteFilePath        string
+	StartTime             int64
+	LocalServicesFileName string
+	ServicesJSONData      []byte
 }
 
 // Meta holds the meta struct to write inside the compressed data
@@ -130,6 +133,11 @@ func doWork(conf *config.Config, client *consul.Consul) error {
 	log.Printf("[INFO] Converting %v ACLs to JSON", b.Client.ACLDataLen)
 	b.ACLsToJSON()
 
+	log.Print("[INFO] Listing Services from consul")
+	b.Client.GetServicesData()
+	log.Printf("[INFO] Converting %v Services to JSON", len(b.Client.ServicesData))
+	b.ServicesToJSON()
+
 	log.Print("[INFO] Preparing temporary directory for backup staging")
 	b.preProcess()
 
@@ -165,6 +173,11 @@ func doWork(conf *config.Config, client *consul.Consul) error {
 		return fmt.Errorf("[ERR] Unable to generate checksum for file %s: %v", b.LocalACLFileName, err)
 	}
 	b.ACLFileChecksum = aclchecksum
+
+	log.Print("[INFO] Writing Services to local backup file")
+	if err := writeFileLocal(b.LocalFilePath, b.LocalServicesFileName, b.ServicesJSONData); err != nil {
+		return fmt.Errorf("[ERR] Unable to write file %s/%s: %v", b.LocalFilePath, b.LocalServicesFileName, err)
+	}
 
 	b.writeMetaLocal()
 	b.compressStagedBackup()
@@ -214,6 +227,15 @@ func (b *Backup) ACLsToJSON() {
 	b.ACLJSONData = jsonData
 }
 
+// ServicesToJSON used to marshall the data and put it on a Backup object
+func (b *Backup) ServicesToJSON() {
+	jsonData, err := json.Marshal(b.Client.ServicesData)
+	if err != nil {
+		log.Fatalf("[ERR] Could not encode Serices to json!: %v", err)
+	}
+	b.ServicesJSONData = jsonData
+}
+
 // preProcess is used to prepare the backup temp location
 func (b *Backup) preProcess() {
 	startString := fmt.Sprintf("%v", b.StartTime)
@@ -233,7 +255,7 @@ func (b *Backup) preProcess() {
 	b.LocalKVFileName = fmt.Sprintf("consul.kv.%s.json", startString)
 	b.LocalPQFileName = fmt.Sprintf("consul.pq.%s.json", startString)
 	b.LocalACLFileName = fmt.Sprintf("consul.acl.%s.json", startString)
-
+	b.LocalServicesFileName = fmt.Sprintf("consul.services.%s.json", startString)
 	b.LocalFilePath = dir
 }
 
